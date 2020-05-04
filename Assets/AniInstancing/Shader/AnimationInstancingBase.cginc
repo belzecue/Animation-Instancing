@@ -73,31 +73,29 @@ half4 skinning(inout appdata_full v)
 	int preFrame = curFrame;
 	int nextFrame = curFrame + 1.0f;
 	half4x4 localToWorldMatrixPre = loadMatFromTexture(preFrame, bone.x) * w.x;
-	if (w.y > 0.0f)
-		localToWorldMatrixPre = localToWorldMatrixPre + loadMatFromTexture(preFrame, bone.y) * w.y;
-	if (w.z > 0.0f)
-		localToWorldMatrixPre = localToWorldMatrixPre + loadMatFromTexture(preFrame, bone.z) * w.z;
-	if (w.w > 0.0f)
-		localToWorldMatrixPre = localToWorldMatrixPre + loadMatFromTexture(preFrame, bone.w) * w.w;
+	localToWorldMatrixPre += loadMatFromTexture(preFrame, bone.y) * max(0, w.y);
+	localToWorldMatrixPre += loadMatFromTexture(preFrame, bone.z) * max(0, w.z);
+	localToWorldMatrixPre += loadMatFromTexture(preFrame, bone.w) * max(0, w.w);
 
 	half4x4 localToWorldMatrixNext = loadMatFromTexture(nextFrame, bone.x) * w.x;
-	if (w.y > 0.0f)
-		localToWorldMatrixNext = localToWorldMatrixNext + loadMatFromTexture(nextFrame, bone.y) * w.y;
-	if (w.z > 0.0f)
-		localToWorldMatrixNext = localToWorldMatrixNext + loadMatFromTexture(nextFrame, bone.z) * w.z;
-	if (w.w > 0.0f)
-		localToWorldMatrixNext = localToWorldMatrixNext + loadMatFromTexture(nextFrame, bone.w) * w.w;
+	localToWorldMatrixNext += loadMatFromTexture(nextFrame, bone.y) * max(0, w.y);
+	localToWorldMatrixNext += loadMatFromTexture(nextFrame, bone.z) * max(0, w.z);
+	localToWorldMatrixNext += loadMatFromTexture(nextFrame, bone.w) * max(0, w.w);
 
 	half4 localPosPre = mul(v.vertex, localToWorldMatrixPre);
 	half4 localPosNext = mul(v.vertex, localToWorldMatrixNext);
 	half4 localPos = lerp(localPosPre, localPosNext, curFrame - preFrame);
 
-	if (preAniFrame >= 0.0f)
-	{
-		half4x4 localToWorldMatrixPreAni = loadMatFromTexture(preAniFrame, bone.x);
-		half4 localPosPreAni = mul(v.vertex, localToWorldMatrixPreAni);
-		localPos = lerp(localPosPreAni, localPos, progress);
-	}
+	half3 localNormPre = mul(v.normal.xyz, (float3x3)localToWorldMatrixPre);
+	half3 localNormNext = mul(v.normal.xyz, (float3x3)localToWorldMatrixNext);
+	v.normal = normalize(lerp(localNormPre, localNormNext, curFrame - preFrame));
+	half3 localTanPre = mul(v.tangent.xyz, (float3x3)localToWorldMatrixPre);
+	half3 localTanNext = mul(v.tangent.xyz, (float3x3)localToWorldMatrixNext);
+	v.tangent.xyz = normalize(lerp(localTanPre, localTanNext, curFrame - preFrame));
+
+	half4x4 localToWorldMatrixPreAni = loadMatFromTexture(preAniFrame, bone.x);
+	half4 localPosPreAni = mul(v.vertex, localToWorldMatrixPreAni);
+	localPos = lerp(localPos, localPosPreAni, (1.0f - progress) * (preAniFrame < 0.0f));
 	return localPos;
 }
 
@@ -120,12 +118,9 @@ half4 skinningShadow(inout appdata_full v)
 	half4 localPosPre = mul(v.vertex, localToWorldMatrixPre);
 	half4 localPosNext = mul(v.vertex, localToWorldMatrixNext);
 	half4 localPos = lerp(localPosPre, localPosNext, curFrame - preFrame);
-	if (preAniFrame >= 0.0f)
-	{
-		half4x4 localToWorldMatrixPreAni = loadMatFromTexture(preAniFrame, bone.x);
-		half4 localPosPreAni = mul(v.vertex, localToWorldMatrixPreAni);
-		localPos = lerp(localPosPreAni, localPos, progress);
-	}
+	half4x4 localToWorldMatrixPreAni = loadMatFromTexture(preAniFrame, bone.x);
+	half4 localPosPreAni = mul(v.vertex, localToWorldMatrixPreAni);
+	localPos = lerp(localPos, localPosPreAni, (1.0f - progress) * (preAniFrame < 0.0f));
 	//half4 localPos = v.vertex;
 	return localPos;
 }
